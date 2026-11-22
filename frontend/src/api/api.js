@@ -87,6 +87,8 @@ export const authApi = {
 // ---------- User endpoints ----------
 export const userApi = {
   getProfile: () => api.get("/api/user/profile"),
+  updateProfile: (payload) => api.put("/api/user/profile", payload),
+  updatePassword: (payload) => api.put("/api/user/password", payload),
   listResponders: () => api.get("/api/user/responders"),
 };
 

@@ -1,12 +1,23 @@
 const express = require("express");
 const protect = require("../middleware/auth");
 const authorizeRoles = require("../middleware/role");
-const { getProfile, listResponders } = require("../controllers/user.controller");
+const {
+  getProfile,
+  updateProfile,
+  updatePassword,
+  listResponders,
+} = require("../controllers/user.controller");
 
 const router = express.Router();
 
 // Get logged-in user's profile
 router.get("/profile", protect, getProfile);
+
+// Update logged-in user's profile & emergency contacts
+router.put("/profile", protect, updateProfile);
+
+// Update logged-in user's password
+router.put("/password", protect, updatePassword);
 
 // List responders (supervisor/admin/responder — used for assignment UI)
 router.get(
