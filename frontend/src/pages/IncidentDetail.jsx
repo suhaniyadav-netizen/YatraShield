@@ -136,6 +136,10 @@ function IncidentDetail({ id }) {
   const currentIdx = FLOW.indexOf(incident.status);
   const next = NEXT_STATUSES[incident.status] || [];
   const escalated = incident.status === "ESCALATED";
+  const reporter = typeof incident.reportedBy === "object" ? incident.reportedBy : null;
+  const isSos =
+    Boolean(incident.description?.toUpperCase().includes("SOS")) ||
+    incident.priority === "critical";
 
   return (
     <div className="page">
@@ -177,11 +181,91 @@ function IncidentDetail({ id }) {
             </div>
           </section>
 
+          {/* Emergency Contact & Next of Kin Card for Responders on SOS */}
+          {user?.role !== "tourist" && isSos && (
+            <section className="card card-pad" style={{ borderLeft: "4px solid var(--signal)" }} aria-label="Emergency Contacts">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="chip" data-tone="critical">
+                    <Icon name="beacon" size={13} /> Emergency SOS Contact
+                  </span>
+                  <h2 className="card-title" style={{ margin: 0 }}>Tourist & Next of Kin</h2>
+                </div>
+                {reporter?.bloodGroup && (
+                  <span className="chip" data-tone="critical">
+                    Blood Group: <strong>{reporter.bloodGroup}</strong>
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+                {/* Tourist Direct Contact */}
+                <div style={{ padding: "14px 16px", borderRadius: "var(--radius-sm)", border: "1px solid var(--line-2)", background: "var(--paper-2)" }}>
+                  <small style={{ color: "var(--muted)", display: "block", fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
+                    Tourist Direct Line
+                  </small>
+                  <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                    <div>
+                      <strong style={{ fontSize: "15px", display: "block" }}>{reporter?.name || reportedByName(incident)}</strong>
+                      <span className="mono" style={{ fontSize: "14px", color: reporter?.phone ? "var(--ink)" : "var(--muted)" }}>
+                        {reporter?.phone || "No direct phone provided"}
+                      </span>
+                    </div>
+                    {reporter?.phone && (
+                      <a href={`tel:${reporter.phone}`} className="btn btn-sm btn-signal" title={`Call ${reporter.name || "tourist"}`}>
+                        <Icon name="phone" size={14} /> Call Tourist
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Emergency Contact (Next of Kin) */}
+                <div style={{ padding: "14px 16px", borderRadius: "var(--radius-sm)", border: "1px solid var(--line-2)", background: "var(--paper-2)" }}>
+                  <small style={{ color: "var(--muted)", display: "block", fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
+                    Emergency Contact (Next of Kin)
+                  </small>
+                  <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                    <div>
+                      <strong style={{ fontSize: "15px", display: "block" }}>
+                        {reporter?.emergencyContact?.name || "No next of kin listed"}
+                        {reporter?.emergencyContact?.relationship && (
+                          <span style={{ fontSize: "13px", fontWeight: "normal", color: "var(--muted)" }}>
+                            {" "}({reporter.emergencyContact.relationship})
+                          </span>
+                        )}
+                      </strong>
+                      <span className="mono" style={{ fontSize: "14px", color: reporter?.emergencyContact?.phone ? "var(--ink)" : "var(--muted)" }}>
+                        {reporter?.emergencyContact?.phone || "No emergency phone provided"}
+                      </span>
+                    </div>
+                    {reporter?.emergencyContact?.phone && (
+                      <a href={`tel:${reporter.emergencyContact.phone}`} className="btn btn-sm btn-signal" title={`Call ${reporter.emergencyContact.name || "emergency contact"}`}>
+                        <Icon name="phone" size={14} /> Call Contact
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           <section className="card card-pad">
             <h2 className="card-title">Description</h2>
             <p className="prose">{incident.description}</p>
             <dl className="facts">
               <div><dt>Reported by</dt><dd>{reportedByName(incident)}</dd></div>
+              {reporter?.phone && (
+                <div>
+                  <dt>Tourist phone</dt>
+                  <dd><a href={`tel:${reporter.phone}`} className="inline-link">{reporter.phone}</a></dd>
+                </div>
+              )}
+              {reporter?.bloodGroup && (
+                <div>
+                  <dt>Blood group</dt>
+                  <dd><span className="chip" data-tone="critical">{reporter.bloodGroup}</span></dd>
+                </div>
+              )}
               <div><dt>Responder</dt><dd>{incident.assignedResponder?.name || "Unassigned"}</dd></div>
               {incident.assignedAt && <div><dt>Assigned</dt><dd>{new Date(incident.assignedAt).toLocaleString()}</dd></div>}
             </dl>

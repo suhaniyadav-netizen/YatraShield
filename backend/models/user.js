@@ -27,6 +27,38 @@ const userSchema = new mongoose.Schema(
       enum: ["tourist", "responder", "supervisor", "admin"],
       default: "tourist",
     },
+
+    phone: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    bloodGroup: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      enum: ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],
+      default: "",
+    },
+
+    emergencyContact: {
+      name: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      phone: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      relationship: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+    },
   },
   {
     timestamps: true,

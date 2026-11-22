@@ -129,7 +129,7 @@ const getAssignedIncidents = async (req, res) => {
     const incidents = await Incident.find({
       assignedResponder: req.user.user_id,
     })
-      .populate("reportedBy", "name email")
+      .populate("reportedBy", "name email phone emergencyContact bloodGroup")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -151,7 +151,7 @@ const getAssignedIncidents = async (req, res) => {
 const getAllIncidents = async (req, res) => {
   try{
     const incidents = await Incident.find()
-      .populate("reportedBy", "name email")
+      .populate("reportedBy", "name email phone emergencyContact bloodGroup")
       .populate("assignedResponder", "name email")
       .sort({ createdAt: -1 });
 
@@ -175,7 +175,7 @@ const getAllIncidents = async (req, res) => {
 const getIncidentById = async (req, res) => {
   try{
     const incident = await Incident.findById(req.params.id)
-      .populate("reportedBy", "name email")
+      .populate("reportedBy", "name email phone emergencyContact bloodGroup")
       .populate("assignedResponder", "name email")
       .populate("statusNotes.addedBy", "name email role");
 
@@ -327,7 +327,7 @@ const updateIncidentStatus = async (req, res) => {
 
     await incident.save();
 
-    await incident.populate("reportedBy", "name email");
+    await incident.populate("reportedBy", "name email phone emergencyContact bloodGroup");
     await incident.populate("assignedResponder", "name email");
     await incident.populate("statusNotes.addedBy", "name email role");
 
@@ -423,7 +423,7 @@ const addIncidentNote = async (req, res) => {
 
     await incident.save();
 
-    await incident.populate("reportedBy", "name email");
+    await incident.populate("reportedBy", "name email phone emergencyContact bloodGroup");
     await incident.populate("assignedResponder", "name email");
     await incident.populate("statusNotes.addedBy", "name email role");
 
@@ -539,7 +539,7 @@ const assignIncident = async (req, res) => {
 
     await incident.save();
 
-    await incident.populate("reportedBy", "name email");
+    await incident.populate("reportedBy", "name email phone emergencyContact bloodGroup");
     await incident.populate("assignedResponder", "name email");
     await incident.populate("statusNotes.addedBy", "name email role");
 
