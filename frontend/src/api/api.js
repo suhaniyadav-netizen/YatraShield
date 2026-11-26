@@ -1,4 +1,4 @@
-import axios from "axios";
+ import axios from "axios";
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "http://localhost:5000";
@@ -87,6 +87,7 @@ export const authApi = {
 // ---------- User endpoints ----------
 export const userApi = {
   getProfile: () => api.get("/api/user/profile"),
+  updateProfile: (payload) => api.patch("/api/user/profile", payload),
   listResponders: () => api.get("/api/user/responders"),
 };
 

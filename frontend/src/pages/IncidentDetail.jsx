@@ -162,7 +162,34 @@ function IncidentDetail({ id }) {
             <p className="prose">{incident.description}</p>
             <dl className="facts">
               <div><dt>Reported by</dt><dd>{reportedByName(incident)}</dd></div>
-              <div><dt>Responder</dt><dd>{incident.assignedResponder?.name || "Unassigned"}</dd></div>
+              {incident.reportedBy?.phone && (
+                <div>
+                  <dt>Tourist Contact</dt>
+                  <dd>
+                    <a
+                      href={`tel:${incident.reportedBy.phone}`}
+                      className="btn btn-sm btn-primary"
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", marginTop: 4 }}
+                    >
+                      <Icon name="phone" size={14} /> Call ({incident.reportedBy.phone})
+                    </a>
+                  </dd>
+                </div>
+              )}
+              <div>
+                <dt>Responder</dt>
+                <dd>
+                  {incident.assignedResponder?.name || "Unassigned"}
+                  {incident.assignedResponder?.phone && (
+                    <a
+                      href={`tel:${incident.assignedResponder.phone}`}
+                      style={{ marginLeft: 8, fontSize: 13, textDecoration: "underline" }}
+                    >
+                      ({incident.assignedResponder.phone})
+                    </a>
+                  )}
+                </dd>
+              </div>
               {incident.assignedAt && <div><dt>Assigned</dt><dd>{new Date(incident.assignedAt).toLocaleString()}</dd></div>}
             </dl>
           </section>

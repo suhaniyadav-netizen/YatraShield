@@ -15,7 +15,7 @@ const ROLES = [
 export default function Register() {
   const { register, authLoading } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "", role: "tourist" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirm: "", role: "tourist" });
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
 
@@ -29,10 +29,19 @@ export default function Register() {
     setError("");
     if (!form.name.trim()) return setError("Please enter your name.");
     if (!form.email.trim()) return setError("Please enter your email.");
+    if (form.phone.trim() && !/^[+0-9\s\-()]{7,20}$/.test(form.phone.trim())) {
+      return setError("Please enter a valid phone number (7-20 digits).");
+    }
     if (form.password.length < 8) return setError("Password must be at least 8 characters.");
     if (form.password !== form.confirm) return setError("Passwords don’t match.");
     try {
-      await register({ name: form.name.trim(), email: form.email.trim(), password: form.password, role: form.role });
+      await register({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        password: form.password,
+        role: form.role,
+      });
       navigate("/", { replace: true });
     } catch (err) {
       setError(err.message || "Registration failed. Please try again.");
@@ -76,6 +85,12 @@ export default function Register() {
               value={form.email} onChange={(e) => set("email", e.target.value)} />
           </label>
         </div>
+
+        <label className="field" htmlFor="phone">
+          <span>Phone number <small>(for emergency response)</small></span>
+          <input id="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="+91 98765 43210"
+            value={form.phone} onChange={(e) => set("phone", e.target.value)} />
+        </label>
 
         <div className="field-row">
           <label className="field" htmlFor="password">

@@ -27,6 +27,12 @@ const userSchema = new mongoose.Schema(
       enum: ["tourist", "responder", "supervisor", "admin"],
       default: "tourist",
     },
+
+    phone: {
+      type: String,
+      trim: true,
+      default: "",
+    },
   },
   {
     timestamps: true,

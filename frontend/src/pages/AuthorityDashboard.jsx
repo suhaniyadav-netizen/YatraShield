@@ -189,7 +189,19 @@ export default function AuthorityDashboard() {
                         <Link to={`/incidents/${inc._id}`} className="cell-title">{categoryLabel(inc.category)}</Link>
                         <span className="cell-sub">{timeAgo(inc)}</span>
                       </td>
-                      <td data-label="Reporter" className="cell-muted">{reportedByName(inc)}</td>
+                      <td data-label="Reporter" className="cell-muted">
+                        <div>{reportedByName(inc)}</div>
+                        {inc.reportedBy?.phone && (
+                          <a
+                            href={`tel:${inc.reportedBy.phone}`}
+                            className="mono"
+                            style={{ fontSize: 11, display: "inline-flex", alignItems: "center", gap: 3, marginTop: 2, textDecoration: "underline" }}
+                            title={`Call reporter: ${inc.reportedBy.phone}`}
+                          >
+                            <Icon name="phone" size={11} /> {inc.reportedBy.phone}
+                          </a>
+                        )}
+                      </td>
                       <td data-label="Location" className="mono cell-muted">{formatCoordinates(inc)}</td>
                       <td data-label="Priority"><PriorityChip priority={inc.priority} /></td>
                       <td data-label="Status"><StatusChip status={inc.status} /></td>

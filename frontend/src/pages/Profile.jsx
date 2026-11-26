@@ -6,19 +6,27 @@ import ThemeToggle from "../components/ThemeToggle.jsx";
 import { Notice, PageHead, Skeleton } from "../components/ui.jsx";
 import { useAuth } from "../context/useAuth.js";
 import { useTheme } from "../utils/theme.js";
-import { requestLogout } from "../utils/toast.js";
+import { requestLogout, toast } from "../utils/toast.js";
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { isDark } = useTheme();
   const [state, setState] = useState({ profile: null, loading: true, error: "" });
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ name: "", phone: "" });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     userApi
       .getProfile()
       .then((res) => {
-        if (!cancelled) setState({ profile: res.data?.user || null, loading: false, error: "" });
+        if (!cancelled) {
+          const u = res.data?.user || null;
+          setState({ profile: u, loading: false, error: "" });
+          if (u) setForm({ name: u.name || "", phone: u.phone || "" });
+        }
       })
       .catch((err) => {
         if (!cancelled) setState({ profile: null, loading: false, error: errorMessage(err, "Failed to load profile.") });
@@ -31,7 +39,36 @@ export default function Profile() {
   const { profile, loading, error } = state;
   const name = profile?.name || user?.name || "User";
   const email = profile?.email || user?.email || "";
+  const phone = profile?.phone || user?.phone || "";
   const role = profile?.role || user?.role || "tourist";
+
+  async function onSaveProfile(e) {
+    e.preventDefault();
+    setSaveError("");
+    if (!form.name.trim()) return setSaveError("Name cannot be empty.");
+    if (form.phone.trim() && !/^[+0-9\s\-()]{7,20}$/.test(form.phone.trim())) {
+      return setSaveError("Please enter a valid phone number (7-20 digits).");
+    }
+
+    try {
+      setSaving(true);
+      const res = await userApi.updateProfile({
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+      });
+      const updated = res.data?.user;
+      if (updated) {
+        setState((p) => ({ ...p, profile: { ...p.profile, ...updated } }));
+        if (updateUser) updateUser(updated);
+        toast("Profile updated successfully");
+        setEditing(false);
+      }
+    } catch (err) {
+      setSaveError(errorMessage(err, "Failed to update profile."));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="page page-narrow">
@@ -40,6 +77,7 @@ export default function Profile() {
       </PageHead>
 
       {error && <Notice tone="error">{error}</Notice>}
+      {saveError && <Notice tone="error">{saveError}</Notice>}
 
       <section className="card card-pad">
         <div className="profile-head">
@@ -48,15 +86,71 @@ export default function Profile() {
             <h2>{name}</h2>
             <p>{email}</p>
           </div>
-          <span className="chip" data-tone="ok"><i className="chip-dot" /> Active</span>
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            style={{ marginLeft: "auto" }}
+            onClick={() => {
+              setEditing(!editing);
+              setSaveError("");
+              setForm({ name, phone });
+            }}
+          >
+            <Icon name={editing ? "x" : "edit"} size={14} />
+            {editing ? "Cancel" : "Edit details"}
+          </button>
         </div>
 
-        {loading ? (
+        {editing ? (
+          <form onSubmit={onSaveProfile} className="form-stack" style={{ marginTop: 20 }}>
+            <div className="field-row">
+              <label className="field" htmlFor="prof-name">
+                <span>Full name</span>
+                <input
+                  id="prof-name"
+                  value={form.name}
+                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  required
+                />
+              </label>
+              <label className="field" htmlFor="prof-phone">
+                <span>Emergency phone number</span>
+                <input
+                  id="prof-phone"
+                  type="tel"
+                  placeholder="+91 98765 43210"
+                  value={form.phone}
+                  onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+                />
+              </label>
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button type="button" className="btn btn-ghost" onClick={() => setEditing(false)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>
+                {saving ? "Saving…" : "Save changes"}
+              </button>
+            </div>
+          </form>
+        ) : loading ? (
           <div className="facts-skeleton"><Skeleton height={52} /><Skeleton height={52} /></div>
         ) : (
           <dl className="facts facts-grid">
             <div><dt>Full name</dt><dd>{name}</dd></div>
             <div><dt>Email</dt><dd>{email || "—"}</dd></div>
+            <div>
+              <dt>Phone (Emergency)</dt>
+              <dd>
+                {phone ? (
+                  <a href={`tel:${phone}`} style={{ color: "inherit", textDecoration: "underline" }}>
+                    {phone}
+                  </a>
+                ) : (
+                  <span style={{ opacity: 0.6 }}>Not set — add for responders</span>
+                )}
+              </dd>
+            </div>
             <div><dt>Role</dt><dd className="cap">{role}</dd></div>
             <div><dt>Member since</dt><dd>{profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString([], { dateStyle: "medium" }) : "—"}</dd></div>
           </dl>

@@ -129,7 +129,7 @@ const getAssignedIncidents = async (req, res) => {
     const incidents = await Incident.find({
       assignedResponder: req.user.user_id,
     })
-      .populate("reportedBy", "name email")
+      .populate("reportedBy", "name email phone")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -151,8 +151,8 @@ const getAssignedIncidents = async (req, res) => {
 const getAllIncidents = async (req, res) => {
   try{
     const incidents = await Incident.find()
-      .populate("reportedBy", "name email")
-      .populate("assignedResponder", "name email")
+      .populate("reportedBy", "name email phone")
+      .populate("assignedResponder", "name email phone")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -175,8 +175,8 @@ const getAllIncidents = async (req, res) => {
 const getIncidentById = async (req, res) => {
   try{
     const incident = await Incident.findById(req.params.id)
-      .populate("reportedBy", "name email")
-      .populate("assignedResponder", "name email");
+      .populate("reportedBy", "name email phone")
+      .populate("assignedResponder", "name email phone");
 
     if(!incident){
       return res.status(404).json({

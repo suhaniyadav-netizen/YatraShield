@@ -19,7 +19,7 @@ export function AuthProvider({ children }) {
         if (cancelled) return;
         const fetched = res.data?.user;
         if (fetched) {
-          setUser({ id: fetched._id || fetched.id, name: fetched.name, email: fetched.email, role: fetched.role });
+          setUser({ id: fetched._id || fetched.id, name: fetched.name, email: fetched.email, phone: fetched.phone || "", role: fetched.role });
         }
       })
       .catch(() => {
@@ -37,7 +37,7 @@ export function AuthProvider({ children }) {
   const applySession = useCallback((data) => {
     const nextUser = data?.user || null;
     const nextToken = data?.token || null;
-    saveAuth({ token: nextToken, user: nextUser ? { id: nextUser.id || nextUser._id, name: nextUser.name, email: nextUser.email, role: nextUser.role } : null });
+    saveAuth({ token: nextToken, user: nextUser ? { id: nextUser.id || nextUser._id, name: nextUser.name, email: nextUser.email, phone: nextUser.phone || "", role: nextUser.role } : null });
     setToken(nextToken);
     setUser(nextUser);
     setAuthError("");
@@ -63,11 +63,11 @@ export function AuthProvider({ children }) {
   );
 
   const register = useCallback(
-    async ({ name, email, password, role }) => {
+    async ({ name, email, password, role, phone }) => {
       setAuthLoading(true);
       setAuthError("");
       try {
-        const res = await authApi.register({ name, email, password, role });
+        const res = await authApi.register({ name, email, password, role, phone });
         return applySession(res.data);
       } catch (err) {
         const message = errorMessage(err, "Registration failed. Please try again.");
@@ -79,6 +79,14 @@ export function AuthProvider({ children }) {
     },
     [applySession]
   );
+
+  const updateUser = useCallback((updatedUserData) => {
+    setUser((prev) => {
+      const merged = { ...prev, ...updatedUserData };
+      saveAuth({ token: getToken(), user: merged });
+      return merged;
+    });
+  }, []);
 
   const logout = useCallback(() => {
     disconnectSocket();
@@ -98,9 +106,10 @@ export function AuthProvider({ children }) {
       authError,
       login,
       register,
+      updateUser,
       logout,
     }),
-    [user, token, authLoading, authError, login, register, logout]
+    [user, token, authLoading, authError, login, register, updateUser, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
