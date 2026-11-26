@@ -87,7 +87,8 @@ export const authApi = {
 // ---------- User endpoints ----------
 export const userApi = {
   getProfile: () => api.get("/api/user/profile"),
-  updateProfile: (payload) => api.patch("/api/user/profile", payload),
+  updateProfile: (payload) => api.put("/api/user/profile", payload),
+  updatePassword: (payload) => api.put("/api/user/password", payload),
   listResponders: () => api.get("/api/user/responders"),
 };
 
@@ -99,7 +100,9 @@ export const incidentApi = {
   getAssigned: () => api.get("/api/incidents/assigned"),
   getAll: () => api.get("/api/incidents/all"),
   getById: (id) => api.get(`/api/incidents/${id}`),
-  updateStatus: (id, status) => api.patch(`/api/incidents/${id}/status`, { status }),
+  updateStatus: (id, status, note) =>
+    api.patch(`/api/incidents/${id}/status`, { status, ...(note ? { note } : {}) }),
+  addNote: (id, note) => api.post(`/api/incidents/${id}/notes`, { note }),
   assign: (id, responderId) => api.patch(`/api/incidents/${id}/assign`, { responderId }),
 };
 

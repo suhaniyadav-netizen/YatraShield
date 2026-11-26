@@ -80,20 +80,21 @@ export function AuthProvider({ children }) {
     [applySession]
   );
 
-  const updateUser = useCallback((updatedUserData) => {
-    setUser((prev) => {
-      const merged = { ...prev, ...updatedUserData };
-      saveAuth({ token: getToken(), user: merged });
-      return merged;
-    });
-  }, []);
-
   const logout = useCallback(() => {
     disconnectSocket();
     clearAuth();
     setUser(null);
     setToken(null);
     setAuthError("");
+  }, []);
+
+  const updateUser = useCallback((patch) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      const next = { ...prev, ...patch };
+      saveAuth({ token: getToken(), user: next });
+      return next;
+    });
   }, []);
 
   const value = useMemo(
@@ -106,10 +107,10 @@ export function AuthProvider({ children }) {
       authError,
       login,
       register,
-      updateUser,
       logout,
+      updateUser,
     }),
-    [user, token, authLoading, authError, login, register, updateUser, logout]
+    [user, token, authLoading, authError, login, register, logout, updateUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

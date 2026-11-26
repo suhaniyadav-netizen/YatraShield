@@ -105,6 +105,37 @@ const incidentSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    // Latest progress note or resolution remark
+    notes: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    // Chronological log of status notes and progress updates
+    statusNotes: [
+      {
+        status: {
+          type: String,
+          required: true,
+        },
+        note: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        addedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        addedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,

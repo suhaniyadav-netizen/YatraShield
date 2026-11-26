@@ -13,6 +13,7 @@ export const INCIDENT_EVENTS = [
   "incident:assigned",
   "incident:reassigned",
   "incident:escalated",
+  "incident:note_added",
 ];
 
 export function modeForRole(role) {

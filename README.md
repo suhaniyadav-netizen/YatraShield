@@ -56,8 +56,9 @@ YatraShield is a full-stack application that enables users to report incidents, 
 | GET | `/api/incidents/assigned` | Get incidents assigned to the responder (responder only) |
 | GET | `/api/incidents/all` | Get all incidents (supervisor/admin only) |
 | GET | `/api/incidents/:id` | Get one incident (owner, assigned responder, or staff) |
-| PATCH | `/api/incidents/:id/status` | Update incident status (assigned responder, or supervisor/admin) |
-| PATCH | `/api/incidents/:id/assign` | Assign incident to responder (admin/supervisor only) |
+| PATCH | `/api/incidents/:id/status` | Update incident status and add optional transition note (assigned responder, or supervisor/admin) |
+| POST | `/api/incidents/:id/notes` | Add progress or resolution note to incident (assigned responder, or supervisor/admin) |
+| PATCH | `/api/incidents/:id/assign` | Assign or reassign incident to responder (admin/supervisor only) |
 
 ## Frontend ↔ Backend Mapping
 
@@ -68,6 +69,7 @@ YatraShield is a full-stack application that enables users to report incidents, 
 | `SOS.jsx` → `incidentApi.create` (category `other` + critical keywords) | `POST /api/incidents` → `critical` priority | — |
 | `MyIncidents.jsx` / `TouristDashboard.jsx` → `getMine` / `getAssigned` / `getAll` (by role) | `GET /api/incidents…` | `incident:status_updated`, `incident:assigned`, `incident:reassigned` |
 | `AuthorityDashboard.jsx` → `getAll`, `listResponders`, `assign`, `updateStatus` | `GET /api/incidents/all`, `GET /api/user/responders`, `PATCH …/assign`, `PATCH …/status` | same events |
+| `IncidentDetail.jsx` → `updateStatus`, `addNote` | `PATCH …/status`, `POST …/notes` | `incident:status_updated`, `incident:note_added` |
 | `Profile.jsx` → `userApi.getProfile` | `GET /api/user/profile` | — |
 
 **How it works:**
@@ -95,6 +97,8 @@ YatraShield is a full-stack application that enables users to report incidents, 
 - `priority` (Enum: low, medium, high, critical, default: medium)
 - `status` (Enum: REPORTED, TRIAGED, ASSIGNED, ACKNOWLEDGED, EN_ROUTE, ON_SITE, RESOLVED, CLOSED, ESCALATED, default: REPORTED)
 - `assignedResponder` (ObjectId ref to User, optional)
+- `notes` (String, latest progress or resolution note)
+- `statusNotes` (Array of objects: `{ status, note, addedBy, addedAt }`)
 
 ## Priority Engine
 

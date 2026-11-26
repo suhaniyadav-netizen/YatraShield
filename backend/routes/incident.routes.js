@@ -9,6 +9,7 @@ const {
   getAllIncidents,
   getIncidentById,
   updateIncidentStatus,
+  addIncidentNote,
   assignIncident,
 } = require("../controllers/incident.controller");
 
@@ -31,6 +32,9 @@ router.get("/:id", protect, getIncidentById);
 
 // Update the status of an incident
 router.patch("/:id/status", protect, updateIncidentStatus);
+
+// Add a progress or resolution note to an incident
+router.post("/:id/notes", protect, addIncidentNote);
 
 // Assign an incident to a responder
 router.patch("/:id/assign", protect, assignIncident);

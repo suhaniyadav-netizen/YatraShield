@@ -129,7 +129,7 @@ const getAssignedIncidents = async (req, res) => {
     const incidents = await Incident.find({
       assignedResponder: req.user.user_id,
     })
-      .populate("reportedBy", "name email phone")
+      .populate("reportedBy", "name email phone emergencyContact bloodGroup")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -151,7 +151,7 @@ const getAssignedIncidents = async (req, res) => {
 const getAllIncidents = async (req, res) => {
   try{
     const incidents = await Incident.find()
-      .populate("reportedBy", "name email phone")
+      .populate("reportedBy", "name email phone emergencyContact bloodGroup")
       .populate("assignedResponder", "name email phone")
       .sort({ createdAt: -1 });
 
@@ -175,8 +175,9 @@ const getAllIncidents = async (req, res) => {
 const getIncidentById = async (req, res) => {
   try{
     const incident = await Incident.findById(req.params.id)
-      .populate("reportedBy", "name email phone")
-      .populate("assignedResponder", "name email phone");
+      .populate("reportedBy", "name email phone emergencyContact bloodGroup")
+      .populate("assignedResponder", "name email phone")
+      .populate("statusNotes.addedBy", "name email role");
 
     if(!incident){
       return res.status(404).json({
@@ -230,7 +231,7 @@ const getIncidentById = async (req, res) => {
 // Update incident status
 const updateIncidentStatus = async (req, res) => {
   try{
-    const{status} = req.body;
+    const { status, note, notes } = req.body;
 
     const allowedStatuses = [
       "TRIAGED",
@@ -245,6 +246,15 @@ const updateIncidentStatus = async (req, res) => {
     if(!allowedStatuses.includes(status)){
       return res.status(400).json({
         message: "Invalid incident status",
+      });
+    }
+
+    const rawNote = typeof note === "string" ? note : typeof notes === "string" ? notes : "";
+    const cleanNote = rawNote.trim();
+
+    if (cleanNote.length > 2000) {
+      return res.status(400).json({
+        message: "Status note cannot exceed 2000 characters",
       });
     }
 
@@ -305,7 +315,21 @@ const updateIncidentStatus = async (req, res) => {
     const previousStatus = incident.status;
 
     incident.status = status;
+    if (cleanNote) {
+      incident.notes = cleanNote;
+      incident.statusNotes.push({
+        status,
+        note: cleanNote,
+        addedBy: req.user.user_id,
+        addedAt: new Date(),
+      });
+    }
+
     await incident.save();
+
+    await incident.populate("reportedBy", "name email phone emergencyContact bloodGroup");
+    await incident.populate("assignedResponder", "name email");
+    await incident.populate("statusNotes.addedBy", "name email role");
 
     // Notify the incident reporter
     const io = req.app.get("io");
@@ -317,18 +341,20 @@ const updateIncidentStatus = async (req, res) => {
         category: incident.category,
         priority: incident.priority,
         status: incident.status,
+        notes: incident.notes,
       },
       previousStatus,
+      note: cleanNote || null,
     };
 
-    io.to(`user:${incident.reportedBy}`).emit(
+    io.to(`user:${incident.reportedBy?._id || incident.reportedBy}`).emit(
       "incident:status_updated",
       statusUpdate
     );
 
     // Notify the assigned responder, if one exists
     if(incident.assignedResponder){
-      io.to(`user:${incident.assignedResponder}`).emit(
+      io.to(`user:${incident.assignedResponder?._id || incident.assignedResponder}`).emit(
         "incident:status_updated",
         statusUpdate
       );
@@ -342,6 +368,96 @@ const updateIncidentStatus = async (req, res) => {
   } catch(error){
     console.error("Update incident status error:", error.message);
 
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
+
+// Add a note or progress update to an incident
+const addIncidentNote = async (req, res) => {
+  try {
+    const { note, notes } = req.body;
+    const rawNote = typeof note === "string" ? note : typeof notes === "string" ? notes : "";
+    const cleanNote = rawNote.trim();
+
+    if (!cleanNote) {
+      return res.status(400).json({
+        message: "Note content is required",
+      });
+    }
+
+    if (cleanNote.length > 2000) {
+      return res.status(400).json({
+        message: "Note cannot exceed 2000 characters",
+      });
+    }
+
+    const incident = await Incident.findById(req.params.id);
+
+    if (!incident) {
+      return res.status(404).json({
+        message: "Incident not found",
+      });
+    }
+
+    const isSupervisorOrAdmin = ["supervisor", "admin"].includes(req.user.role);
+    const isAssignedResponder =
+      incident.assignedResponder &&
+      incident.assignedResponder.toString() === req.user.user_id;
+
+    if (!isSupervisorOrAdmin && !isAssignedResponder) {
+      return res.status(403).json({
+        message: "You are not authorized to add notes to this incident",
+      });
+    }
+
+    incident.notes = cleanNote;
+    incident.statusNotes.push({
+      status: incident.status,
+      note: cleanNote,
+      addedBy: req.user.user_id,
+      addedAt: new Date(),
+    });
+
+    await incident.save();
+
+    await incident.populate("reportedBy", "name email phone emergencyContact bloodGroup");
+    await incident.populate("assignedResponder", "name email");
+    await incident.populate("statusNotes.addedBy", "name email role");
+
+    const io = req.app.get("io");
+    const notePayload = {
+      message: "New note added to incident",
+      incidentId: incident._id,
+      status: incident.status,
+      note: cleanNote,
+      addedBy: {
+        _id: req.user.user_id,
+        role: req.user.role,
+      },
+      addedAt: new Date(),
+    };
+
+    io.to(`user:${incident.reportedBy?._id || incident.reportedBy}`).emit(
+      "incident:note_added",
+      notePayload
+    );
+
+    if (incident.assignedResponder) {
+      io.to(`user:${incident.assignedResponder?._id || incident.assignedResponder}`).emit(
+        "incident:note_added",
+        notePayload
+      );
+    }
+
+    return res.status(200).json({
+      message: "Note added successfully",
+      incident,
+    });
+  } catch (error) {
+    console.error("Add incident note error:", error.message);
     return res.status(500).json({
       message: "Server error",
     });
@@ -375,9 +491,10 @@ const assignIncident = async (req, res) => {
       });
     }
 
-    if(!["TRIAGED", "ESCALATED"].includes(incident.status)){
+    // Support assigning TRIAGED, ESCALATED, or reassigning ASSIGNED incidents
+    if(!["TRIAGED", "ESCALATED", "ASSIGNED"].includes(incident.status)){
       return res.status(400).json({
-        message: "Only TRIAGED or ESCALATED incidents can be assigned",
+        message: "Only TRIAGED, ESCALATED, or ASSIGNED incidents can be assigned",
       });
     }
 
@@ -391,6 +508,8 @@ const assignIncident = async (req, res) => {
 
     const previousResponder = incident.assignedResponder;
     const wasEscalated = incident.status === "ESCALATED";
+    const wasAssigned = incident.status === "ASSIGNED";
+    const isReassignment = wasEscalated || (wasAssigned && Boolean(previousResponder));
 
     const assignedTime = new Date();
 
@@ -404,7 +523,25 @@ const assignIncident = async (req, res) => {
 
     incident.escalatedAt = null;
 
+    // Record assignment action in statusNotes history
+    const assignNoteText = isReassignment
+      ? wasEscalated
+        ? `Escalated incident reassigned to responder ${responder.name || responder.email || responder._id}`
+        : `Incident reassigned to responder ${responder.name || responder.email || responder._id}`
+      : `Incident assigned to responder ${responder.name || responder.email || responder._id}`;
+
+    incident.statusNotes.push({
+      status: "ASSIGNED",
+      note: assignNoteText,
+      addedBy: req.user.user_id,
+      addedAt: assignedTime,
+    });
+
     await incident.save();
+
+    await incident.populate("reportedBy", "name email phone emergencyContact bloodGroup");
+    await incident.populate("assignedResponder", "name email");
+    await incident.populate("statusNotes.addedBy", "name email role");
 
     const io = req.app.get("io");
 
@@ -417,6 +554,7 @@ const assignIncident = async (req, res) => {
       location: incident.location,
       assignedAt: incident.assignedAt,
       acknowledgementDueAt: incident.acknowledgementDueAt,
+      assignedResponder: incident.assignedResponder,
     };
 
     // Notify the newly assigned responder
@@ -425,14 +563,16 @@ const assignIncident = async (req, res) => {
       {
         message: wasEscalated
           ? "An escalated incident has been reassigned to you"
+          : isReassignment
+          ? "An incident has been reassigned to you"
           : "A new incident has been assigned to you",
         incident: incidentDetails,
       }
     );
 
-    if(wasEscalated){
+    if(isReassignment){
       // Notify the tourist who reported the incident
-      io.to(`user:${incident.reportedBy}`).emit(
+      io.to(`user:${incident.reportedBy?._id || incident.reportedBy}`).emit(
         "incident:reassigned",
         {
           message: "Your incident has been reassigned to another responder",
@@ -465,7 +605,9 @@ const assignIncident = async (req, res) => {
           io.to(`user:${supervisor._id}`).emit(
             "incident:reassigned",
             {
-              message: "An escalated incident has been reassigned",
+              message: wasEscalated
+                ? "An escalated incident has been reassigned"
+                : "An incident has been reassigned",
               incident: incidentDetails,
             }
           );
@@ -481,6 +623,8 @@ const assignIncident = async (req, res) => {
     return res.status(200).json({
       message: wasEscalated
         ? "Escalated incident reassigned successfully"
+        : isReassignment
+        ? "Incident reassigned successfully"
         : "Incident assigned successfully",
       incident,
     });
@@ -502,5 +646,6 @@ module.exports = {
   getAllIncidents,
   getIncidentById,
   updateIncidentStatus,
+  addIncidentNote,
   assignIncident,
 };

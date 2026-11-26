@@ -27,6 +27,9 @@ function IncidentDetail({ id }) {
   const { user } = useAuth();
   const [state, setState] = useState({ incident: null, loading: true, error: "" });
   const [busy, setBusy] = useState(false);
+  const [statusNote, setStatusNote] = useState("");
+  const [noteText, setNoteText] = useState("");
+  const [submittingNote, setSubmittingNote] = useState(false);
   const { incident, loading, error } = state;
 
   const load = useCallback(async () => {
@@ -59,13 +62,30 @@ function IncidentDetail({ id }) {
     if (!next || next === incident.status) return;
     setBusy(true);
     try {
-      const res = await incidentApi.updateStatus(id, next);
+      const res = await incidentApi.updateStatus(id, next, statusNote.trim());
       setState({ incident: res.data.incident, loading: false, error: "" });
+      setStatusNote("");
       toast(`${shortId(incident)} → ${statusLabel(next)}`);
     } catch (err) {
       setState((s) => ({ ...s, error: errorMessage(err, "Update failed.") }));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function onAddNote(e) {
+    e?.preventDefault();
+    if (!noteText.trim()) return;
+    setSubmittingNote(true);
+    try {
+      const res = await incidentApi.addNote(id, noteText.trim());
+      setState({ incident: res.data.incident, loading: false, error: "" });
+      setNoteText("");
+      toast("Note added to incident.");
+    } catch (err) {
+      setState((s) => ({ ...s, error: errorMessage(err, "Failed to add note.") }));
+    } finally {
+      setSubmittingNote(false);
     }
   }
 
@@ -116,6 +136,10 @@ function IncidentDetail({ id }) {
   const currentIdx = FLOW.indexOf(incident.status);
   const next = NEXT_STATUSES[incident.status] || [];
   const escalated = incident.status === "ESCALATED";
+  const reporter = typeof incident.reportedBy === "object" ? incident.reportedBy : null;
+  const isSos =
+    Boolean(incident.description?.toUpperCase().includes("SOS")) ||
+    incident.priority === "critical";
 
   return (
     <div className="page">
@@ -157,23 +181,97 @@ function IncidentDetail({ id }) {
             </div>
           </section>
 
+          {/* Emergency Contact & Next of Kin Card for Responders on SOS */}
+          {user?.role !== "tourist" && isSos && (
+            <section className="card card-pad" style={{ borderLeft: "4px solid var(--signal)" }} aria-label="Emergency Contacts">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="chip" data-tone="critical">
+                    <Icon name="beacon" size={13} /> Emergency SOS Contact
+                  </span>
+                  <h2 className="card-title" style={{ margin: 0 }}>Tourist & Next of Kin</h2>
+                </div>
+                {reporter?.bloodGroup && (
+                  <span className="chip" data-tone="critical">
+                    Blood Group: <strong>{reporter.bloodGroup}</strong>
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+                {/* Tourist Direct Contact */}
+                <div style={{ padding: "14px 16px", borderRadius: "var(--radius-sm)", border: "1px solid var(--line-2)", background: "var(--paper-2)" }}>
+                  <small style={{ color: "var(--muted)", display: "block", fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
+                    Tourist Direct Line
+                  </small>
+                  <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                    <div>
+                      <strong style={{ fontSize: "15px", display: "block" }}>{reporter?.name || reportedByName(incident)}</strong>
+                      <span className="mono" style={{ fontSize: "14px", color: reporter?.phone ? "var(--ink)" : "var(--muted)" }}>
+                        {reporter?.phone || "No direct phone provided"}
+                      </span>
+                    </div>
+                    {reporter?.phone && (
+                      <a href={`tel:${reporter.phone}`} className="btn btn-sm btn-signal" title={`Call ${reporter.name || "tourist"}`}>
+                        <Icon name="phone" size={14} /> Call Tourist
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Emergency Contact (Next of Kin) */}
+                <div style={{ padding: "14px 16px", borderRadius: "var(--radius-sm)", border: "1px solid var(--line-2)", background: "var(--paper-2)" }}>
+                  <small style={{ color: "var(--muted)", display: "block", fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
+                    Emergency Contact (Next of Kin)
+                  </small>
+                  <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                    <div>
+                      <strong style={{ fontSize: "15px", display: "block" }}>
+                        {reporter?.emergencyContact?.name || "No next of kin listed"}
+                        {reporter?.emergencyContact?.relationship && (
+                          <span style={{ fontSize: "13px", fontWeight: "normal", color: "var(--muted)" }}>
+                            {" "}({reporter.emergencyContact.relationship})
+                          </span>
+                        )}
+                      </strong>
+                      <span className="mono" style={{ fontSize: "14px", color: reporter?.emergencyContact?.phone ? "var(--ink)" : "var(--muted)" }}>
+                        {reporter?.emergencyContact?.phone || "No emergency phone provided"}
+                      </span>
+                    </div>
+                    {reporter?.emergencyContact?.phone && (
+                      <a href={`tel:${reporter.emergencyContact.phone}`} className="btn btn-sm btn-signal" title={`Call ${reporter.emergencyContact.name || "emergency contact"}`}>
+                        <Icon name="phone" size={14} /> Call Contact
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           <section className="card card-pad">
             <h2 className="card-title">Description</h2>
             <p className="prose">{incident.description}</p>
             <dl className="facts">
               <div><dt>Reported by</dt><dd>{reportedByName(incident)}</dd></div>
-              {incident.reportedBy?.phone && (
+              {reporter?.phone && (
                 <div>
-                  <dt>Tourist Contact</dt>
+                  <dt>Tourist phone</dt>
                   <dd>
                     <a
-                      href={`tel:${incident.reportedBy.phone}`}
+                      href={`tel:${reporter.phone}`}
                       className="btn btn-sm btn-primary"
                       style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", marginTop: 4 }}
                     >
-                      <Icon name="phone" size={14} /> Call ({incident.reportedBy.phone})
+                      <Icon name="phone" size={14} /> Call ({reporter.phone})
                     </a>
                   </dd>
+                </div>
+              )}
+              {reporter?.bloodGroup && (
+                <div>
+                  <dt>Blood group</dt>
+                  <dd><span className="chip" data-tone="critical">{reporter.bloodGroup}</span></dd>
                 </div>
               )}
               <div>
@@ -192,6 +290,54 @@ function IncidentDetail({ id }) {
               </div>
               {incident.assignedAt && <div><dt>Assigned</dt><dd>{new Date(incident.assignedAt).toLocaleString()}</dd></div>}
             </dl>
+          </section>
+
+          <section className="card card-pad">
+            <h2 className="card-title">Status Notes & Updates</h2>
+            {incident.statusNotes && incident.statusNotes.length > 0 ? (
+              <ul className="settings" style={{ marginTop: 12 }}>
+                {incident.statusNotes.map((entry, idx) => (
+                  <li key={entry._id || idx} style={{ alignItems: "flex-start", gap: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span className="chip" data-tone="neutral"><i className="chip-dot" /> {statusLabel(entry.status)}</span>
+                        <small className="mono" style={{ color: "var(--faint)", fontSize: "11.5px" }}>
+                          {formatTime({ createdAt: entry.addedAt })}
+                        </small>
+                      </div>
+                      <p className="prose" style={{ marginTop: 8, fontSize: "14px" }}>{entry.note}</p>
+                      {entry.addedBy && (
+                        <small style={{ color: "var(--muted)", display: "block", marginTop: 4 }}>
+                          — {entry.addedBy.name || entry.addedBy.email || "Staff"} ({entry.addedBy.role || "staff"})
+                        </small>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : incident.notes ? (
+              <p className="prose" style={{ marginTop: 8 }}>{incident.notes}</p>
+            ) : (
+              <p style={{ color: "var(--muted)", fontSize: "14px", marginTop: 12 }}>No progress or resolution notes recorded yet.</p>
+            )}
+
+            {user?.role !== "tourist" && (
+              <form onSubmit={onAddNote} style={{ marginTop: 18, display: "grid", gap: 10 }}>
+                <input
+                  type="text"
+                  placeholder="Post a progress update or note..."
+                  value={noteText}
+                  disabled={submittingNote}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  maxLength={2000}
+                />
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button type="submit" className="btn btn-sm btn-ghost" disabled={submittingNote || !noteText.trim()}>
+                    {submittingNote ? "Posting..." : "Add Note"}
+                  </button>
+                </div>
+              </form>
+            )}
           </section>
         </div>
 
@@ -221,13 +367,23 @@ function IncidentDetail({ id }) {
             )}
 
             {next.length > 0 && user?.role !== "tourist" && (
-              <label className="field field-tight">
-                <span>Advance status</span>
-                <Select value={incident.status} disabled={busy} onChange={(e) => onStatus(e.target.value)} className="is-block">
-                  <option value={incident.status}>{statusLabel(incident.status)}</option>
-                  {next.map((s) => <option key={s} value={s}>→ {statusLabel(s)}</option>)}
-                </Select>
-              </label>
+              <div style={{ marginTop: 18, display: "grid", gap: 10 }}>
+                <label className="field field-tight">
+                  <span>Advance status</span>
+                  <Select value={incident.status} disabled={busy} onChange={(e) => onStatus(e.target.value)} className="is-block">
+                    <option value={incident.status}>{statusLabel(incident.status)}</option>
+                    {next.map((s) => <option key={s} value={s}>→ {statusLabel(s)}</option>)}
+                  </Select>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Resolution remarks or transition note (optional)..."
+                  value={statusNote}
+                  disabled={busy}
+                  onChange={(e) => setStatusNote(e.target.value)}
+                  maxLength={2000}
+                />
+              </div>
             )}
           </section>
         </div>
