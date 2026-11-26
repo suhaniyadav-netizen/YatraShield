@@ -124,6 +124,17 @@ export default function MyIncidents() {
                         <Link to={`/incidents/${inc._id}`} className="cell-title" onClick={(e) => e.stopPropagation()}>
                           {categoryLabel(inc.category)}
                         </Link>
+                        {inc.reportedBy?.phone && (
+                          <a
+                            href={`tel:${inc.reportedBy.phone}`}
+                            className="btn btn-sm btn-ghost"
+                            style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 6px", fontSize: 11, marginLeft: 6 }}
+                            onClick={(e) => e.stopPropagation()}
+                            title={`Call tourist: ${inc.reportedBy.phone}`}
+                          >
+                            <Icon name="phone" size={12} /> {inc.reportedBy.phone}
+                          </a>
+                        )}
                         <span className="cell-sub clamp-1">{inc.description}</span>
                       </td>
                       <td data-label="Location" className="mono cell-muted">{formatCoordinates(inc)}</td>

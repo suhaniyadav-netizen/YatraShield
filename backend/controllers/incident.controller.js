@@ -152,7 +152,7 @@ const getAllIncidents = async (req, res) => {
   try{
     const incidents = await Incident.find()
       .populate("reportedBy", "name email phone emergencyContact bloodGroup")
-      .populate("assignedResponder", "name email")
+      .populate("assignedResponder", "name email phone")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -176,7 +176,7 @@ const getIncidentById = async (req, res) => {
   try{
     const incident = await Incident.findById(req.params.id)
       .populate("reportedBy", "name email phone emergencyContact bloodGroup")
-      .populate("assignedResponder", "name email")
+      .populate("assignedResponder", "name email phone")
       .populate("statusNotes.addedBy", "name email role");
 
     if(!incident){

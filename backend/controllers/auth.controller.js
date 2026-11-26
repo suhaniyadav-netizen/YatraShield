@@ -21,10 +21,10 @@ const generateToken = (user) => {
   );
 };
 
-// Public registration: all new accounts are tourists.
+// Public registration: tourists by default, role picker enabled for demo/testing.
 const registerUser = async (req, res) => {
   try{
-    const { name, email, password } = req.body;
+    const { name, email, password, phone } = req.body;
 
     if (
       typeof name !== "string" ||
@@ -38,6 +38,16 @@ const registerUser = async (req, res) => {
 
     const normalizedName = name.trim();
     const normalizedEmail = email.trim().toLowerCase();
+    let normalizedPhone = "";
+
+    if (phone !== undefined && phone !== null && typeof phone === "string") {
+      normalizedPhone = phone.trim();
+      if (normalizedPhone && !/^[+0-9\s\-()]{7,20}$/.test(normalizedPhone)) {
+        return res.status(400).json({
+          message: "Please provide a valid phone number (7-20 digits and symbols)",
+        });
+      }
+    }
 
     if(!normalizedName || normalizedName.length > 100){
       return res.status(400).json({
@@ -94,6 +104,7 @@ const registerUser = async (req, res) => {
       email: normalizedEmail,
       password: hashedPassword,
       role: requestedRole,
+      phone: normalizedPhone,
     });
 
     const token = generateToken(user);
@@ -105,6 +116,7 @@ const registerUser = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone || "",
         role: user.role,
       },
     });
@@ -179,6 +191,7 @@ const loginUser = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone || "",
         role: user.role,
       },
     });

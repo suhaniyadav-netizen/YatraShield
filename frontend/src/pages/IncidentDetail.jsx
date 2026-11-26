@@ -257,7 +257,15 @@ function IncidentDetail({ id }) {
               {reporter?.phone && (
                 <div>
                   <dt>Tourist phone</dt>
-                  <dd><a href={`tel:${reporter.phone}`} className="inline-link">{reporter.phone}</a></dd>
+                  <dd>
+                    <a
+                      href={`tel:${reporter.phone}`}
+                      className="btn btn-sm btn-primary"
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", marginTop: 4 }}
+                    >
+                      <Icon name="phone" size={14} /> Call ({reporter.phone})
+                    </a>
+                  </dd>
                 </div>
               )}
               {reporter?.bloodGroup && (
@@ -266,7 +274,20 @@ function IncidentDetail({ id }) {
                   <dd><span className="chip" data-tone="critical">{reporter.bloodGroup}</span></dd>
                 </div>
               )}
-              <div><dt>Responder</dt><dd>{incident.assignedResponder?.name || "Unassigned"}</dd></div>
+              <div>
+                <dt>Responder</dt>
+                <dd>
+                  {incident.assignedResponder?.name || "Unassigned"}
+                  {incident.assignedResponder?.phone && (
+                    <a
+                      href={`tel:${incident.assignedResponder.phone}`}
+                      style={{ marginLeft: 8, fontSize: 13, textDecoration: "underline" }}
+                    >
+                      ({incident.assignedResponder.phone})
+                    </a>
+                  )}
+                </dd>
+              </div>
               {incident.assignedAt && <div><dt>Assigned</dt><dd>{new Date(incident.assignedAt).toLocaleString()}</dd></div>}
             </dl>
           </section>
